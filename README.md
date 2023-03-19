@@ -23,7 +23,7 @@ Download the `.zip` file from releases, extract it and start the executable `Fuw
 the script applied. Make sure that the app was not running, otherwise it will only open the already started program, wihout the script being applied.
 
 # How it works?
-This works by injecting the `script.js` file into Discord which can detect if a user clicks on an emoji that has been disabled. 
+This works by injecting the `script.js` file into the app which can detect if a user clicks on an emoji that has been disabled. 
 When clicking on the emoji, the url of the image is being send to the python script which uses the Keyboard to write the URL into the
 message box and then sends it.
 
