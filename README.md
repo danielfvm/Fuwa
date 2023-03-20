@@ -1,4 +1,4 @@
-# Fuwa
+# Fuwa 不和
 Use emojis, stickers and themes for free on a "certain popular Voice, Video and Chat platform". Use the emoji and sticker selector to send them. 
 Keep in mind that you cannot use the emojis inserted in text and that you cannot send them using the `:emoji:` shortcut. 
 Under `Appearance` in `Settings` you can select a theme that you would like to apply, you can also preview it before applying it.
