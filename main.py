@@ -14,37 +14,11 @@ import psutil
 import sys
 import os
 
-hostName = "localhost"
-serverPort = 8875
-
 logger = logging.getLogger(__name__)
 keyboard = Controller()
 
-class KeyboardServer(BaseHTTPRequestHandler):
-    def do_GET(self):
-        data = unquote(self.path)[1:].replace("size=56", "size=48").replace("&quality=lossless", "")
-
-        print(">" + data + "<")
-
-        if data.startswith("http"):
-            self.send_response(200)
-            # write url into chatbox and send it, on linux there was some bug that when using 
-            # keyboard.type it would mix up some keys, therefore it now has an additional sleep
-            if sys.platform.startswith("linux"):
-                for key in data:
-                    keyboard.type(key)
-                    sleep(0.001)
-                keyboard.type('\n')
-            else:
-                keyboard.type(data)
-                keyboard.type('\n')
-        else:
-            self.send_response(200)
-            with open("theme.cfg", "w+") as f:
-                f.write(data)
-
 def find_discord_on_windows():
-    # C:\Users\Daniel\AppData\Local\Discord\app-1.0.9011
+    # C:\Users\USERNAME\AppData\Local\Discord\app-1.0.9011
     installation_folder = "C:/Users/%s/AppData/Local/Discord/" % os.getlogin()
 
     # No discord installation found
@@ -98,17 +72,9 @@ if __name__ == "__main__":
 
             proc = inject(target, content.replace("THEME", "THEME='" + theme_selected + "'")).proc
 
-        # Start server
-        webServer = HTTPServer((hostName, serverPort), KeyboardServer)
-        print("Server started http://%s:%s" % (hostName, serverPort))
-        server_thread = Thread(target=webServer.serve_forever, args=())
-        server_thread.start()
-
         # Wait until discord stops
         while proc.poll() is None:
             sleep(1)
 
     except KeyboardInterrupt:
         pass
-
-    webServer.shutdown()

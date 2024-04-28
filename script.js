@@ -1,6 +1,7 @@
-/**** Useful functions and variables ****/
-const SERVER_URL = "http://127.0.0.1:8875/";
-let THEME;
+let wpRequire, request, db;
+
+window.webpackChunkdiscord_app.push([[Math.random()], {}, (req) => wpRequire = req]);
+request = window.indexedDB.open("ThemeDatabase", 1);
 
 const themes = {
 	'Mint Apple': '--custom-theme-background: linear-gradient(180deg, var(--bg-gradient-mint-apple-1) 6.15%, var(--bg-gradient-mint-apple-2) 48.7%, var(--bg-gradient-mint-apple-3) 93.07%);',
@@ -21,44 +22,33 @@ const themes = {
 	'Under the Sea': '--custom-theme-background: linear-gradient(179.14deg, var(--bg-gradient-under-the-sea-1) 1.91%, var(--bg-gradient-under-the-sea-2) 48.99%, var(--bg-gradient-under-the-sea-3) 96.35%);',
 };
 
-const getByTagAndClass = (tag, clazzes) => {
-	return Array.from(document.getElementsByTagName(tag))
-		.filter(x => clazzes.filter((clazz) => x.className.includes(clazz)).length == clazzes.length)
-}
 
+
+/**** DevTools ****/
+document.addEventListener("keydown", (e) => {
+    if (e.key == "F12") {
+        require("electron").remote.BrowserWindow.getFocusedWindow().webContents.toggleDevTools();
+    } else if (e.key == "F5") {
+        location.reload();
+    }
+});
+
+
+
+/**** Helper Functions ****/
 const removeClass = (dom, clazz) => {
-	for (const c of dom.classList) {
-		if (c.includes(clazz)) {
+	dom.classList.forEach((c) => {
+		if (c.includes(clazz))
 			dom.classList.remove(c);
-		}
-	}
-}
+	});
+};
 
+const getChannelId = () =>
+	document.querySelector('li[class^="messageListItem"]').id.split('-')[2];
 
-/**** Emojis & Stickers ****/
-const hookEmojis = () => getByTagAndClass("button", ["emojiItemDisabled"]).forEach(x => {
-	x.onclick = () => {
-		getByTagAndClass("button", ["emojiButtonHovered"])[0].click();
-		setTimeout(() => fetch(SERVER_URL + encodeURIComponent(x.children[0].src)), 0);
-	};
-	x.onmouseover = () => {
-		hookEmojis();
-	}
-	removeClass(x, "emojiItemDisabled");
-});
+const sendMessage = (message) =>
+	!message || wpRequire.c[904245].exports.default.sendMessage(getChannelId(), {content: message});
 
-const hookStickers = () => getByTagAndClass("div", ["stickerUnsendable"]).forEach(x => {
-	x.onclick = () => {
-		getByTagAndClass("div", ["stickerButton"])[0].click();
-		setTimeout(() => fetch(SERVER_URL + encodeURIComponent(x.children[0].children[0].src)), 0);
-	};
-	removeClass(x, "stickerUnsendable");
-});
-
-
-
-
-/**** Themes ****/
 const applyTheme = (name) => {
 	if (!(name in themes)) {
 		return;
@@ -72,16 +62,14 @@ const applyTheme = (name) => {
 	}
 
 	styleTag.innerHTML = ".custom-theme-background {\n" + themes[name] + "\n}";
-
-	setTimeout(() => fetch(SERVER_URL + encodeURIComponent(name)), 0);
+	saveTheme(name);
 }
 
+
+
+/**** MutationObserver ****/
 const observer = new MutationObserver((mutations) => {
-	mutations.forEach((mutation) => {
-		if (!mutation.target.classList.contains("custom-theme-background")) {
-			mutation.target.classList.add("custom-theme-background");
-		}
-	});
+	mutations.forEach((mutation) => mutation.target.classList.toggle("custom-theme-background", true));
 });
 
 observer.observe($("html"), {
@@ -89,24 +77,69 @@ observer.observe($("html"), {
 	attributeFilter: ['class']
 });
 
-const hookTheme = () => getByTagAndClass("div", ["themeSelection"]).forEach(x => {
-	if (!x.parentNode.className.includes("themeSelectionContainer")) {
-		return;
-	}
 
-	x.onclick = () => {
-		applyTheme(x.ariaLabel);
-		setTimeout(() => fetch(SERVER_URL + encodeURIComponent(x.ariaLabel)), 0);
+
+/**** IndexedDB ****/
+request.onsuccess = function(event) {
+	db = event.target.result;
+	getTheme();
+};
+
+request.onupgradeneeded = function(event) {
+	db = event.target.result;
+	db.createObjectStore("themes", { keyPath: "id" });
+	console.log("Object store created successfully");
+};
+
+const saveTheme = (theme) => {
+	const transaction = db.transaction(["themes"], "readwrite");
+	const objectStore = transaction.objectStore("themes");
+	objectStore.put({ id: 1, theme: theme });
+};
+
+const getTheme = () => {
+	const transaction = db.transaction(["themes"], "readonly");
+	const objectStore = transaction.objectStore("themes");
+	const request = objectStore.get(1);
+
+	request.onsuccess = function(event) {
+		if (request.result) {
+			console.log("Current theme: " + request.result.theme);
+			applyTheme(request.result.theme);
+		} else {
+			console.log("No theme set yet");
+		}
 	};
-	removeClass(x, "disabled");
-});
+};
+
 
 
 /**** Update Loop ****/
 const interval = setInterval(() => {
-	hookEmojis();
-	hookStickers();
-	hookTheme();
-}, 100);
+	document.querySelectorAll('[class*="themeSelectionContainer"]').forEach(div => {
+		div.onclick = () => applyTheme(div.firstChild.ariaLabel);
+		removeClass(div.firstChild, "disabled");
+	});
 
-applyTheme(THEME);
+	// Remove the "Nitro only" banner and lock symbols over emojis
+	document.querySelector('[class^="upsellWrapper"]')?.remove();
+	document.querySelector('[class^="upsellContainer"]')?.remove();
+	document.querySelectorAll('[class^="emojiLockIconContainer"]').forEach(div => div.remove());
+	document.querySelector('[class^="premiumPromo"]')?.remove();
+	document.querySelectorAll('[class^="shinyButton"]').forEach(btn => btn.remove());
+
+	const premBorder = document.querySelector('[class^="premiumFeatureBorder"]');
+	if (premBorder)
+		premBorder.classList = "";
+
+	// Send emoji image link on emoji click
+	document.querySelectorAll('[data-type="emoji"]').forEach(btn => {
+		btn.onclick = () => sendMessage(btn.firstChild.src.replace("?size=80", "?size=40"));
+	});
+
+	// Send sticker image link on sticker click
+	document.querySelectorAll('[data-type="sticker"]').forEach(img => {
+		img.onclick = () => sendMessage(img.src);
+		removeClass(img.parentNode.parentNode, "stickerUnsendable");
+	});
+}, 200);
