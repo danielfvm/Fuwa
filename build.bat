@@ -1,3 +1,3 @@
 @echo off
 
-pyinstaller main.py -n fuwa-discord --noconfirm --onefile --add-data "./script.js;."
+pyinstaller main.py -n fuwa-discord --noconsole --noconfirm --onefile --add-data "./script.js;."
